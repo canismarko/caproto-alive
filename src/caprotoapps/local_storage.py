@@ -114,8 +114,7 @@ class LocalStorageGroup(PVGroup):
             return
         # Create directory
         target = Path(self.full_path.value)
-        if not await target.exists():
-            await target.mkdir()
+        await target.mkdir(parents=True, exist_ok=True)
         # Update the *exists* PV (check again in case create failed)
         await self.exists.write(await target.exists())
         # Reset the PV
