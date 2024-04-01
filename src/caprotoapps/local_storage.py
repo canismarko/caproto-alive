@@ -10,6 +10,8 @@ Example usage:
 
 """
 
+import datetime as dt
+
 from aiopath import AsyncPath as Path
 
 from caproto.server import PVGroup, pvproperty
@@ -75,8 +77,11 @@ class LocalStorageGroup(PVGroup):
     async def update_PIs(self, PIs):
         """Update the directory structure based on the new PI names provided."""
         # Convert commas and spaces to underscores
-        new_path = PIs.replace(", ", "_").replace(",", "_").replace(" ", "-")
-        await self.sub_directory.write(new_path)
+        PI_path = PIs.replace(", ", "_").replace(",", "_").replace(" ", "-")
+        # Add the current year as a directory
+        year = dt.datetime.now().strftime("%Y")
+        # Set the current sub_directory PV
+        await self.sub_directory.write(f"{year}/{PI_path}")
 
     async def update_full_path(self, file_system, sub_directory):
         fs = Path(file_system)

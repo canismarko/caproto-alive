@@ -1,4 +1,7 @@
+import datetime as dt
+
 import pytest
+import time_machine
 
 from caproto.server import PVGroup, SubGroup
 
@@ -15,11 +18,12 @@ def test_ioc():
     yield ioc
 
 
+@time_machine.travel(dt.datetime(1985, 10, 26, 1, 24))
 @pytest.mark.asyncio
 async def test_update_PIs(test_ioc):
     ioc = test_ioc
     await ioc.local_storage.update_PIs("Reynolds, Fry")
-    assert ioc.local_storage.sub_directory.value == "Reynolds_Fry"
+    assert ioc.local_storage.sub_directory.value == "1985/Reynolds_Fry"
 
 
 @pytest.mark.asyncio
