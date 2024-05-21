@@ -28,6 +28,8 @@ class ProposalUser(User):
         name="piFlag", record="bo", enum_strings=["Y", "N"], dtype=ChannelType.ENUM
     )
     institution = pvproperty(value="", max_length=1024, record="stringout")
+    institution_id = pvproperty(value="", name="instId", dtype=ChannelType.STRING, record="stringout")
+    user_id = pvproperty(value="", name="userId", dtype=ChannelType.STRING, record="stringout")
 
 
 class Proposal(PVGroup):

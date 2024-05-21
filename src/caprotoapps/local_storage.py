@@ -10,7 +10,13 @@ Example usage:
 
 """
 
+import datetime as dt
+
+from aiopath import AsyncPath as Path
+
 from caproto.server import PVGroup, pvproperty
+from caproto.server.autosave import autosaved
+from pathvalidate import sanitize_filepath
 
 
 class LocalStorageGroup(PVGroup):
@@ -34,8 +40,82 @@ class LocalStorageGroup(PVGroup):
     a combination of both other PVs and can be used to store data.
 
     """
-    base_directory = pvproperty(doc="The static portion of the directory path. Does not change with BSS metadata.")
-    sub_directory = pvproperty(doc="The variable portion of the directory path. Based on BSS metadata.")
-    final_directory = pvproperty(read_only=True, doc="The combined directory path based on the base and sub directories.")
-    exists = pvproperty(read_only=True, value=False, doc="Whether or not the value of *final_directory* exists on the target filesystem.")
-    create = pvproperty(dtype=bool, doc="Put to this PV to create the *final_directory* on the target filesystem.")
+
+    file_system = autosaved(pvproperty(
+        value="",
+        max_length=200,
+        string_encoding="utf-8",
+        report_as_string=True,
+        doc="The static portion of the directory path. Does not change with BSS metadata.",
+    ))
+    sub_directory = pvproperty(
+        value="",
+        max_length=200,
+        string_encoding="utf-8",
+        report_as_string=True,
+        doc="The variable portion of the directory path. Based on BSS metadata.",
+    )
+    full_path = pvproperty(
+        value="",
+        max_length=400,
+        string_encoding="utf-8",
+        report_as_string=True,
+        read_only=True,
+        doc="The combined directory path based on the base and sub directories.",
+    )
+    exists = pvproperty(
+        read_only=True,
+        value="Off",
+        dtype=bool,
+        doc="Whether or not the value of *final_directory* exists on the target filesystem.",
+    )
+    create = pvproperty(
+        dtype=bool,
+        doc="Put to this PV to create the *final_directory* on the target filesystem.",
+    )
+
+    async def update_PIs(self, PIs):
+        """Update the directory structure based on the new PI names provided."""
+        # Convert commas and spaces to underscores
+        PI_path = PIs.replace(", ", "_").replace(",", "_").replace(" ", "-")
+        # Add the current year as a directory
+        year = dt.datetime.now().strftime("%Y")
+        # Set the current sub_directory PV
+        await self.sub_directory.write(f"{year}/{PI_path}")
+
+    async def update_full_path(self, file_system, sub_directory):
+        fs = Path(file_system)
+        full_path = fs / sub_directory.strip('/')
+        # Sanitize the path
+        full_path = sanitize_filepath(str(full_path))
+        # Write the combined path to the PV
+        await self.full_path.write(full_path)
+
+    # Wrap the source PVs so they update the full path
+    @file_system.putter
+    async def file_system(self, instance, value):
+        await self.update_full_path(value, self.sub_directory.value)
+
+    @sub_directory.putter
+    async def sub_directory(self, instance, value):
+        await self.update_full_path(self.file_system.value, value)
+
+    @full_path.putter
+    async def full_path(self, instance, value):
+        path = Path(value)
+        if await path.exists():
+            await self.exists.write(True)
+        else:
+            await self.exists.write(False)
+
+    @create.putter
+    async def create(self, instance, value):
+        if value != "On":
+            return
+        # Create directory
+        target = Path(self.full_path.value)
+        await target.mkdir(parents=True, exist_ok=True)
+        # Update the *exists* PV (check again in case create failed)
+        await self.exists.write(await target.exists())
+        # Reset the PV
+        return "Off"

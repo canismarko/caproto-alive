@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: System :: Hardware",
 ]
 keywords = ["caproto", "controls"]
-dependencies = ["caproto", "fabric", "labjack-ljm", "numpy", "pyyaml", "aiohttp"]
+dependencies = ["caproto", "fabric", "labjack-ljm", "numpy", "pyyaml", "aiohttp", "pathvalidate", "aiopath"]
 
 [project.optional-dependencies]
 dev = ["black", "isort", "pytest", "pytest-asyncio", "build", "twine", "flake8", "time-machine"]
